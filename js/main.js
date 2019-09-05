@@ -1,11 +1,20 @@
 'use strict';
 var TYPES = ['palace', 'flat', 'house', 'bungalo'];
-var map = document.querySelector('.map');
-var mapOverlay = document.querySelector('.map__overlay');
-var pins = document.querySelector('.map__pins');
 var ADS_COUNT = 8;
 var PIN_HEIGHT = document.querySelector('.map__pin:last-child').offsetHeight;
 var PIN_WIDTH = document.querySelector('.map__pin:last-child').offsetWidth;
+var map = document.querySelector('.map');
+var mainPin = document.querySelector('.map__pin--main');
+var mapOverlay = document.querySelector('.map__overlay');
+var pins = document.querySelector('.map__pins');
+var adForm = document.querySelector('.ad-form');
+var adFormFields = adForm.querySelectorAll('.ad-form__element');
+var addressField = document.querySelector('#address');
+
+adFormFields.forEach(function (element) {
+  element.setAttribute('disabled', 'disabled');
+});
+
 
 var getRandomInt = function (min, max) {
   return Math.floor(Math.random() * (max - min)) + min;
@@ -19,19 +28,16 @@ var getChosenNumbers = function (min, max) {
   return chosenNumbers;
 };
 
-var arrayOfNumbers = getChosenNumbers(1, ADS_COUNT);
-
-var getUniqueInt = function (min, max) {
-  var uniqueNumber;
-  var randomNumber = getRandomInt(min, max);
-  if (arrayOfNumbers.indexOf(randomNumber) !== -1) {
-    uniqueNumber = randomNumber;
-    arrayOfNumbers.splice(arrayOfNumbers.indexOf(uniqueNumber), 1);
-  } else {
-    uniqueNumber = arrayOfNumbers[arrayOfNumbers.length - 1];
-    arrayOfNumbers.splice(arrayOfNumbers.indexOf(uniqueNumber), 1);
+var getUniqueInt = function (arr) {
+  var j;
+  var temp;
+  for (var i = arr.length - 1; i > 0; i--) {
+    j = Math.floor(Math.random() * (i + 1));
+    temp = arr[j];
+    arr[j] = arr[i];
+    arr[i] = temp;
   }
-  return uniqueNumber;
+  return arr;
 };
 
 var renderPin = function (pinData) {
@@ -53,7 +59,7 @@ var renderPins = function () {
   for (var i = 0; i < ADS_COUNT; i++) {
     var similarAds = {
       'author': {
-        'avatar': 'img/avatars/user0' + getUniqueInt(1, ADS_COUNT) + '.png',
+        'avatar': 'img/avatars/user0' + getUniqueInt(getChosenNumbers(1, ADS_COUNT)[i]) + '.png',
       },
       'offer': {
         'type': TYPES[getRandomInt(0, TYPES.length - 1)],
@@ -69,5 +75,55 @@ var renderPins = function () {
   pins.appendChild(fragment);
 };
 
-map.classList.remove('map--faded');
+var onMainPinClick = function () {
+  addressField.value = mainPin.offsetLeft + ', ' + mainPin.offsetTop;
+  adFormFields.forEach(function (element) {
+    element.removeAttribute('disabled', 'disabled');
+    map.classList.remove('map--faded');
+    adForm.classList.remove('ad-form--disabled');
+  });
+};
+
+mainPin.addEventListener('mousedown', function (evt) {
+  evt.preventDefault();
+  onMainPinClick();
+  var startCoords = {
+    x: evt.clientX,
+    y: evt.clientY
+  };
+
+  var onMouseMove = function (moveEvt) {
+    evt.preventDefault();
+    var shift = {
+      x: startCoords.x - moveEvt.clientX,
+      y: startCoords.y - moveEvt.clientY
+    };
+
+    startCoords = {
+      x: moveEvt.clientX,
+      y: moveEvt.clientY
+    };
+
+    mainPin.style.top = (mainPin.offsetTop - shift.y) + 'px';
+    mainPin.style.left = (mainPin.offsetLeft - shift.x) + 'px';
+    addressField.value = parseInt(mainPin.style.left, 10) + ', ' + parseInt(mainPin.style.top, 10);
+  };
+
+  var onMouseUp = function (upEvt) {
+    upEvt.preventDefault();
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    if (parseInt(mainPin.style.top, 10) < 60 || parseInt(mainPin.style.top, 10) > 660
+      || parseInt(mainPin.style.left, 10) < -15 || parseInt(mainPin.style.left, 10) > 1055) {
+      mainPin.style.top = 375 + 'px';
+      mainPin.style.left = 570 + 'px';
+      addressField.value = parseInt(mainPin.style.left, 10) + ', ' + parseInt(mainPin.style.top, 10);
+    }
+  };
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+});
+
+
 renderPins();
